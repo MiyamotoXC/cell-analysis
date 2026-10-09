@@ -5,24 +5,12 @@ __pycache__/
 .venv/
 venv/
 
-# 数据（下载/生成，体积大）
-cell_data/
-cell_data_synth/
-# 已下载但暂不参与训练的视野（按实例数/密度筛掉的部分）
+# 冗余中间数据：按实例数/密度筛掉、暂不参与训练的视野（约 460 MB）。
+# 需要时可用 download_livecell.py 重新下载，故不进仓库。
+# 其余数据（cell_data、cell_data_synth）、产出（outputs）与预训练权重（weights）
+# 都随仓库一起提交，克隆下来即可直接跑。
 cell_data_spare/
 cell_data_spare2/
-
-# 产出目录：训练、推理、聚类、时序的结果都在这里，与代码和数据分开
-outputs/
-outputs_synth/
-
-# 运行时下载的预训练权重
-weights/
-*.pt
-
-# 分析输出（由脚本生成）
-*.csv
-*.png
 
 # 训练日志（后台训练时重定向的 stdout/stderr）
 *.log

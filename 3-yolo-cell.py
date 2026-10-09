@@ -28,12 +28,21 @@ import os
 
 import imageio.v2 as iio
 import torch
+import yaml
 from ultralytics import YOLO
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA_YAML = os.path.join(HERE, "livecell.yaml")
-# 与 livecell.yaml 的 train/val/test 保持一致（convert_livecell.py 的输出布局）
-TEST_IMAGE_DIR = os.path.join(HERE, "cell_data", "images", "test")
+# 真实 LIVECell 数据集；跑合成演示数据时用 --data livecell_synth.yaml
+DEFAULT_DATA = os.path.join(HERE, "livecell.yaml")
+
+
+def resolve_data(data_arg):
+    """解析数据集配置，返回 (yaml 绝对路径, 测试集图像目录)。"""
+    path = data_arg if os.path.isabs(data_arg) else os.path.join(HERE, data_arg)
+    with open(path, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    test_dir = os.path.join(HERE, cfg["path"], "images", "test")
+    return path, test_dir
 
 
 def best_weights(strategy):
@@ -53,7 +62,7 @@ def detect_device():
 
 
 # ---------- 三档训练策略 ----------
-def build_train_kwargs(strategy, device, is_cpu, epochs=None):
+def build_train_kwargs(strategy, device, is_cpu, data, epochs=None):
     """返回该策略的 model.train() 参数字典。"""
     if is_cpu:
         # CPU 短训至少要 60 轮：实测 20 轮 mAP50 仅 0.20、默认阈值下检出为 0，
@@ -63,7 +72,7 @@ def build_train_kwargs(strategy, device, is_cpu, epochs=None):
         base = dict(epochs=100, batch=16, workers=8, patience=50, imgsz=640)
 
     kwargs = dict(
-        data=DATA_YAML,
+        data=data,
         task="segment",
         device=device,
         save=True,
@@ -124,13 +133,13 @@ def build_train_kwargs(strategy, device, is_cpu, epochs=None):
 
 
 # ---------- conf 阈值网格搜索（借鉴策略6，分割用 seg 指标） ----------
-def conf_search(model, thresholds=None):
+def conf_search(model, data, thresholds=None):
     if thresholds is None:
         thresholds = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.5]
     best_conf, best_map = None, -1.0
     print("\n==== conf 阈值网格搜索（mask mAP50）====")
     for conf in thresholds:
-        r = model.val(data=DATA_YAML, conf=conf, verbose=False)
+        r = model.val(data=data, conf=conf, verbose=False)
         map50 = r.seg.map50            # 分割任务用 seg 指标
         print(f"  conf={conf:<5} -> mask mAP50 = {map50:.4f}")
         if map50 > best_map:
@@ -143,6 +152,8 @@ def main():
     ap = argparse.ArgumentParser(description="YOLOv8-seg 单细胞分割训练（增强版）")
     ap.add_argument("--strategy", default="enhanced",
                     choices=["baseline", "enhanced", "large"])
+    ap.add_argument("--data", default=DEFAULT_DATA,
+                    help="数据集配置：真实 livecell.yaml / 合成 livecell_synth.yaml")
     ap.add_argument("--model", default=None,
                     help="模型权重，默认按策略选：large 用 yolov8s-seg.pt，其余 yolov8n-seg.pt")
     ap.add_argument("--imgsz", type=int, default=0, help="覆盖默认输入尺寸（CPU 512 / GPU 640）")
@@ -159,7 +170,8 @@ def main():
     model = YOLO(args.model)
     model.info()
 
-    kwargs = build_train_kwargs(args.strategy, device, device == "cpu", args.epochs)
+    data_yaml, test_dir = resolve_data(args.data)
+    kwargs = build_train_kwargs(args.strategy, device, device == "cpu", data_yaml, args.epochs)
     if args.imgsz > 0:          # 显式指定才覆盖策略默认
         kwargs["imgsz"] = args.imgsz if args.strategy != "large" else max(args.imgsz, 1280)
     print(f"\n==== 训练开始（strategy={args.strategy}, model={args.model}, "
@@ -174,16 +186,16 @@ def main():
     # conf 网格搜索（最优阈值直接用于下面的预览推理）
     conf = None
     if args.conf_search:
-        conf, _ = conf_search(model)
+        conf, _ = conf_search(model, data_yaml)
 
     # 测试集预览
     wpath = best_weights(args.strategy)
     best = YOLO(wpath) if os.path.exists(wpath) else model
-    if os.path.exists(TEST_IMAGE_DIR) and args.preview > 0:
+    if os.path.exists(test_dir) and args.preview > 0:
         pred_dir = os.path.join(HERE, "runs", "segment", "predict")
         os.makedirs(pred_dir, exist_ok=True)
-        for name in sorted(os.listdir(TEST_IMAGE_DIR))[: args.preview]:
-            img_path = os.path.join(TEST_IMAGE_DIR, name)
+        for name in sorted(os.listdir(test_dir))[: args.preview]:
+            img_path = os.path.join(test_dir, name)
             res = best(img_path, augment=args.tta, conf=conf if conf else 0.25)  # --tta 开启 TTA
             # 用 imageio 落盘：cv2/ultralytics 的 save 在中文路径下会静默失败
             vis = res[0].plot()

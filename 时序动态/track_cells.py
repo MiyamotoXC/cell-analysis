@@ -95,8 +95,9 @@ def track(mask_files, iou_thresh=0.3):
 
 def main():
     ap = argparse.ArgumentParser(description="跨帧细胞追踪")
-    ap.add_argument("--mask_dir", default=os.path.join(ROOT, "timeframes"),
-                    help="时序 mask 目录（frame_000.png, frame_001.png, ...）")
+    ap.add_argument("--mask_dir", default=os.path.join(ROOT, "cell_data", "timeframes"),
+                    help="时序 mask 目录（真实 LIVECell 由 download_livecell.py 下载；"
+                         "合成演示数据在 cell_data_synth/timeframes）")
     ap.add_argument("--iou_thresh", type=float, default=0.3)
     ap.add_argument("--out", default=os.path.join(HERE, "tracks.csv"))
     args = ap.parse_args()

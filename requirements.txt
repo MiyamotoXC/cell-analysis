@@ -13,6 +13,7 @@ opencv-python>=5.0       # 轮廓抽取 / 图像绘制
 numpy>=2.0
 imageio>=2.38            # 图像落盘（cv2.imwrite 在中文路径下会静默失败）
 requests>=2.34           # 数据集下载
+huggingface_hub>=2.0     # 真实 LIVECell 数据集下载（download_livecell.py）
 tqdm>=4.70
 pyyaml>=6.0
 

@@ -5,16 +5,17 @@
 在没有任何外部数据集的情况下，一键生成整条流水线所需的全部数据，使
 「训练 -> 推理导出 mask -> 路线 A 聚类 -> 路线 B 时序追踪」可以端到端跑通。
 
-产出（默认写在 细胞分析/ 下）：
-  cell_data/images/{train,val,test}/*.png   合成相差显微图（3 通道 PNG）
-  cell_data/labels/{train,val,test}/*.txt   YOLO-seg 多边形标注（坐标归一化）
-  cell_data/masks/*.png                     测试图对应的 GT 实例 mask（uint16，0=背景）
-  timeframes/frame_000.png ...              时序实例 mask（模拟漂移/生长/分裂）
+产出（默认写在 细胞分析/cell_data_synth/ 下，与真实数据目录 cell_data/ 完全隔离，
+因此合成数据和下载来的 LIVECell 不会混进同一次训练）：
+  cell_data_synth/images/{train,val,test}/*.png   合成相差显微图（3 通道 PNG）
+  cell_data_synth/labels/{train,val,test}/*.txt   YOLO-seg 多边形标注（坐标归一化）
+  cell_data_synth/masks/*.png                     测试图对应的 GT 实例 mask（uint16，0=背景）
+  cell_data_synth/timeframes/frame_000.png ...    时序实例 mask（模拟漂移/生长/分裂）
 
 合成图刻意模仿相差显微镜的观感：细胞体偏暗、边缘一圈亮 halo、整体有噪声与轻微模糊，
 因此形态特征（面积/圆度/偏心率/实心度）分布合理，聚类与追踪能拿到有意义的结果。
 
-真实数据路径见 download_livecell.py + convert_livecell.py（LIVECell，GB 级）。
+真实数据路径见 download_livecell.py + convert_livecell.py（LIVECell，真实显微数据集）。
 
 用法：
   python make_sample_data.py                       # 默认小规模，秒级生成
@@ -28,8 +29,10 @@ import imageio.v2 as iio
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CELL_DATA = os.path.join(HERE, "cell_data")
-TIME_DIR = os.path.join(HERE, "timeframes")
+# 合成数据单独放一个目录：真实 LIVECell 下载到 cell_data/，两者互不污染
+SYNTH_DIR = os.path.join(HERE, "cell_data_synth")
+CELL_DATA = SYNTH_DIR
+TIME_DIR = os.path.join(SYNTH_DIR, "timeframes")
 
 # 类别与 livecell.yaml / convert_livecell.py 的顺序必须完全一致
 CLASS_NAMES = ["A172", "BT474", "BV2", "Huh7", "MCF7", "SHSY5Y", "SkBr3", "SKOV3"]

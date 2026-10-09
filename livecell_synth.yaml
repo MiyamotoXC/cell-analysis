@@ -1,0 +1,21 @@
+# 合成演示数据集配置（与真实 LIVECell 的 livecell.yaml 同结构）
+# 由 make_sample_data.py 生成到 cell_data_synth/，与真实数据 cell_data/ 完全隔离，
+# 因此「零下载跑通」和「真实数据训练」不会互相污染。
+#
+# 用法：python 3-yolo-cell.py --data livecell_synth.yaml --strategy baseline
+
+path: ./cell_data_synth     # 先运行 make_sample_data.py 生成
+train: images/train
+val: images/val
+test: images/test
+
+# 类别与 livecell.yaml 完全一致（8 种细胞系）
+names:
+  0: A172
+  1: BT474
+  2: BV2
+  3: Huh7
+  4: MCF7
+  5: SHSY5Y
+  6: SkBr3
+  7: SKOV3

@@ -1,0 +1,29 @@
+# 单细胞图像分析（细胞分析）依赖
+# 实测环境：Windows / Python 3.12 / CPU
+
+# --- PyTorch：先单独装，避免 pip 拉到体积巨大的 CUDA 版 ---
+# CPU:      pip install torch --index-url https://download.pytorch.org/whl/cpu
+# NVIDIA:   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+torch>=2.6
+
+# --- 分割底座（YOLOv8-seg）---
+ultralytics>=8.4
+pycocotools>=2.0.11      # LIVECell COCO RLE 解码（convert_livecell.py）
+opencv-python>=5.0       # 轮廓抽取 / 图像绘制
+numpy>=2.0
+imageio>=2.38            # 图像落盘（cv2.imwrite 在中文路径下会静默失败）
+requests>=2.34           # 数据集下载
+tqdm>=4.70
+pyyaml>=6.0
+
+# --- 路线 A：形态表型聚类 ---
+scikit-image>=0.26
+scikit-learn>=1.9
+hdbscan>=0.8.44
+umap-learn>=0.5.12
+matplotlib>=3.11
+pandas>=3.0
+
+# --- 路线 B：时序增殖（复用上面的 scikit-image / matplotlib / pandas）---
+
+# 路线 C：蛋白质荧光定量 -> 见 ../蛋白质分析/requirements.txt

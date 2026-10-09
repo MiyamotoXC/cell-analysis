@@ -1,0 +1,25 @@
+# 单细胞图像处理数据集配置（LIVECell，实例分割）
+# 参考：Sartorius LIVECell (Nature Methods 2021)
+# 任务：实例分割（YOLOv8-seg），输出 mask，指标 mask AP
+# 由原钢材缺陷检测项目（../yolo-cases）克隆重构；本配置取代钢材的 steel_data/dataset.yaml。
+
+path: ./cell_data            # 数据集根目录（先运行 download_livecell.py + convert_livecell.py 生成）
+train: images/train          # 训练图像（相对 path）
+val: images/val              # 验证图像
+test: images/test            # 测试图像（可选）
+
+# 类别：LIVECell 8 种细胞系（顺序固定，convert_livecell.py 按此映射）
+names:
+  0: A172
+  1: BT474
+  2: BV2
+  3: Huh7
+  4: MCF7
+  5: SHSY5Y
+  6: SkBr3
+  7: SKOV3
+
+# 训练（实例分割）：
+#   yolo train model=yolov8n-seg.pt data=livecell.yaml task=segment
+# 评估：
+#   yolo val model=runs/segment/train/weights/best.pt data=livecell.yaml task=segment

@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 数据与模型（体积大，全部由脚本生成/下载）
+cell_data/
+timeframes/
+runs/
+*.pt
+
+# 分析输出（由脚本生成）
+*.csv
+*.png
+
+# 本地环境
+.env
+.idea/
+.vscode/

@@ -41,7 +41,7 @@ pip install -r requirements.txt
 
 python download_livecell.py                   # 1. 下载真实 LIVECell
 python convert_livecell.py                    # 2. 生成 YOLO-seg 标注
-python 3-yolo-cell.py --strategy baseline     # 3. 训练
+python 3-yolo-cell.py --strategy baseline     # 3. 训练（推荐 GPU，CPU 见下方性能提示）
 python 4-yolo-cell-predict.py --name baseline # 4. 推理 + 导出预测实例 mask
 
 python 聚类分析/cluster_features.py           # 5. 路线 A：形态表型聚类
@@ -70,7 +70,7 @@ python 时序动态/track_cells.py --mask_dir ../cell_data_synth/timeframes
 |---|---|
 | 下载真实数据 | 36 个视野 / **59,374 个真实细胞**（train 12 / val 12 / test 12） |
 | 标注转换 | 59,374 个实例 -> YOLO-seg 多边形（8 类，类别从视野名解析） |
-| 训练 | 20 轮 @512（CPU，约 10 分钟）；逐轮指标见 `runs/segment/baseline/results.csv` |
+| 训练 | 真实数据单张视野上千个细胞、直径约 11 px，CPU 上每轮要几分钟；完整训练请用 GPU，逐轮指标见 `runs/segment/baseline/results.csv` |
 | 路线 B（真实时序） | Huh7 位点 6 帧（每 4h）：458 条记录 / 295 条轨迹，细胞数 79 → 73，检出 5 起分裂 |
 | 路线 C（真实荧光） | 见 `../蛋白质分析/`：3 个视野 1784 个细胞，核/质定位比 0.38~4.12 |
 

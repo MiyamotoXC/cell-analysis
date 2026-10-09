@@ -16,6 +16,7 @@
 | 每条数据 | 520×704 相差显微图（uint8）+ uint16 实例 mask（0=背景，1..N=细胞） |
 | 划分 | 数据集自带 train/valid/test，按**采集批次**划分（同一孔/皿/时序不会跨集） |
 | 时序 | 同一位点每 **4 小时**一帧，最多 19~25 帧，可直接跑路线 B |
+| 类别 | **单类 `cell`**。LIVECell 官方任务就是单类分割；而且数据集自带的 train/valid/test 按采集批次划分，各 split 的细胞系几乎不重叠（train 是 A172/BT474/BV2/SkBr3/SKOV3，valid/test 是 Huh7/MCF7/SHSY5Y），一旦按 8 类细胞系训练，验证集的类别从没在训练集里出现过，mAP 会恒等于 0 |
 
 ```bash
 python download_livecell.py --list            # 只看规模，不下载
@@ -28,7 +29,7 @@ python convert_livecell.py                    # 实例 mask -> YOLO-seg 多边�
 
 ```
 cell_data/images/{train,val,test}/<视野>.png
-cell_data/labels/{train,val,test}/<视野>.txt   YOLO-seg 多边形，类别 = 视野名里的细胞系
+cell_data/labels/{train,val,test}/<视野>.txt   YOLO-seg 多边形，单类 cell（id=0）
 cell_data/masks/{train,val,test}/<视野>.png    真实实例 mask（下游路线 A/B 的输入）
 cell_data/timeframes/frame_000.png ...        同一位点的时序 mask 序列
 ```
@@ -36,14 +37,34 @@ cell_data/timeframes/frame_000.png ...        同一位点的时序 mask 序列
 ## 快速开始（真实数据）
 
 ```bash
-pip install torch --index-url https://download.pytorch.org/whl/cpu   # CPU；GPU 按官网装
+# NVIDIA GPU：pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+# 纯 CPU  ：--index-url 换成 .../whl/cpu
+pip install torch torchvision
 pip install -r requirements.txt
 
 python download_livecell.py                   # 1. 下载真实 LIVECell
 python convert_livecell.py                    # 2. 生成 YOLO-seg 标注
 python 3-yolo-cell.py --strategy baseline     # 3. 训练（推荐 GPU，CPU 见下方性能提示）
 python 4-yolo-cell-predict.py --name baseline # 4. 推理 + 导出预测实例 mask
+```
 
+### GPU 训练（推荐）
+
+脚本会自动检测 CUDA，无需改代码；显存紧张时按下面调参：
+
+```bash
+python 3-yolo-cell.py --strategy baseline --imgsz 768 --batch 2 --workers 2 --epochs 60
+python 4-yolo-cell-predict.py --name baseline --conf 0.25
+```
+
+- **`--imgsz`**：细胞直径只有约 11 px，640 以下基本学不到，768~1024 才有意义
+- **`--batch`**：8 GB 显存（如 RTX 4060 Laptop）配 imgsz 1024 建议 2~4
+- **`--workers`**：dataloader 进程数。每个 worker 都要把多边形栅格化成 mask，
+  真实数据单图几百个实例，worker 一多**内存**（不是显存）直接爆，2 足够
+
+### 下游分析
+
+```bash
 python 聚类分析/cluster_features.py           # 5. 路线 A：形态表型聚类
 python 聚类分析/5-cluster-cells.py
 python 时序动态/track_cells.py                # 6. 路线 B：时序增殖
@@ -68,9 +89,9 @@ python 时序动态/track_cells.py --mask_dir ../cell_data_synth/timeframes
 
 | 环节 | 结果 |
 |---|---|
-| 下载真实数据 | 36 个视野 / **59,374 个真实细胞**（train 12 / val 12 / test 12） |
-| 标注转换 | 59,374 个实例 -> YOLO-seg 多边形（8 类，类别从视野名解析） |
-| 训练 | 真实数据单张视野上千个细胞、直径约 11 px，CPU 上每轮要几分钟；完整训练请用 GPU，逐轮指标见 `runs/segment/baseline/results.csv` |
+| 下载真实数据 | 272 个视野 / **40,937 个真实细胞**（train 92 / val 88 / test 92，单图最多 400 个细胞） |
+| 标注转换 | 40,937 个实例 -> YOLO-seg 多边形（单类 cell） |
+| 训练 | GPU（RTX 4060 Laptop 8 GB）imgsz 768 / batch 2 / workers 2，约 46 秒一轮；逐轮指标见 `runs/segment/baseline/results.csv` |
 | 路线 B（真实时序） | Huh7 位点 6 帧（每 4h）：458 条记录 / 295 条轨迹，细胞数 79 → 73，检出 5 起分裂 |
 | 路线 C（真实荧光） | 见 `../蛋白质分析/`：3 个视野 1784 个细胞，核/质定位比 0.38~4.12 |
 
@@ -121,7 +142,7 @@ python 3-yolo-cell.py --data livecell_synth.yaml        # 合成演示数据
 
 ```
 细胞分析/
-├── livecell.yaml              # 真实数据集配置（Ultralytics，8 类）
+├── livecell.yaml              # 真实数据集配置（Ultralytics，单类 cell）
 ├── livecell_synth.yaml        # 合成演示数据配置（cell_data_synth）
 ├── download_livecell.py       # 下载真实 LIVECell（Hugging Face）
 ├── convert_livecell.py        # 实例 mask -> YOLO-seg 多边形标注
@@ -164,7 +185,7 @@ python 3-yolo-cell.py --data livecell_synth.yaml        # 合成演示数据
 
 - **数据隔离**：真实数据 `cell_data/`，合成数据 `cell_data_synth/`，两者不会混训。
 - LIVECell 标注是 uint16 实例 mask，`convert_livecell.py` 直接抽轮廓转多边形，
-  不需要 COCO RLE 解析；类别由视野名里的细胞系决定。
+  不需要 COCO RLE 解析；所有实例统一标为 cell 一类（多类会在跨细胞系的划分上恒为 0 mAP）。
 - 所有图像落盘统一用 `imageio`：**`cv2.imwrite` 在中文路径下会返回 True 却不写文件**。
 - HDBSCAN 的 `min_cluster_size` 必须小于真实簇的细胞数，否则所有点都会被判成噪声
   （脚本已按样本量自动收敛，也可用 `--min_cluster_size` 手工指定）。

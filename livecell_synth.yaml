@@ -9,13 +9,6 @@ train: images/train
 val: images/val
 test: images/test
 
-# 类别与 livecell.yaml 完全一致（8 种细胞系）
+# 类别与 livecell.yaml 完全一致：单类 cell
 names:
-  0: A172
-  1: BT474
-  2: BV2
-  3: Huh7
-  4: MCF7
-  5: SHSY5Y
-  6: SkBr3
-  7: SKOV3
+  0: cell

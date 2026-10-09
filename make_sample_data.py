@@ -34,19 +34,19 @@ SYNTH_DIR = os.path.join(HERE, "cell_data_synth")
 CELL_DATA = SYNTH_DIR
 TIME_DIR = os.path.join(SYNTH_DIR, "timeframes")
 
-# 类别与 livecell.yaml / convert_livecell.py 的顺序必须完全一致
-CLASS_NAMES = ["A172", "BT474", "BV2", "Huh7", "MCF7", "SHSY5Y", "SkBr3", "SKOV3"]
-# 每个细胞系的基础半轴（长轴, 短轴）。类间差异要拉得开（大小 + 离心率），
-# 否则类别标签与形态无关，分类不可学，会把训练指标和置信度一起拖垮。
-CLASS_AXES = [
-    (20, 14),   # A172    中等椭圆
-    (18, 17),   # BT474   近圆、偏大
-    (11, 9),    # BV2     小、近圆
-    (25, 18),   # Huh7    大椭圆
-    (19, 15),   # MCF7    中等近圆
-    (24, 8),    # SHSY5Y  细长（神经元样）
-    (16, 13),   # SkBr3   中等偏小
-    (23, 16),   # SKOV3   大椭圆
+# 单类 cell，与 livecell.yaml / convert_livecell.py 的 names 保持一致
+CLASS_NAMES = ["cell"]
+# 形态模式池（半轴：长轴, 短轴）。虽然全标同一类，但形态跨度要留住——
+# 路线 A 的聚类就是靠这些形态差异分群，形态太单一会让聚类退化成一个大簇。
+SHAPE_MODES = [
+    (20, 14),   # 中等椭圆
+    (18, 17),   # 近圆、偏大
+    (11, 9),    # 小、近圆
+    (25, 18),   # 大椭圆
+    (19, 15),   # 中等近圆
+    (24, 8),    # 细长（神经元样）
+    (16, 13),   # 中等偏小
+    (23, 16),   # 大椭圆
 ]
 
 
@@ -57,7 +57,7 @@ def ellipse_mask(shape, center, axes, angle):
     return m.astype(bool)
 
 
-def sample_cells(shape, n_cells, rng, cls_ids):
+def sample_cells(shape, n_cells, rng):
     """拒绝采样放置细胞，避免大面积重叠。返回 cell 列表。"""
     h, w = shape
     placed = np.zeros(shape, dtype=bool)
@@ -66,8 +66,7 @@ def sample_cells(shape, n_cells, rng, cls_ids):
     max_tries = n_cells * 80
     while len(cells) < n_cells and tries < max_tries:
         tries += 1
-        cls = int(rng.choice(cls_ids))
-        base_a, base_b = CLASS_AXES[cls]
+        base_a, base_b = SHAPE_MODES[int(rng.integers(len(SHAPE_MODES)))]
         a = max(4, int(round(rng.normal(base_a, base_a * 0.10))))
         b = max(3, int(round(rng.normal(base_b, base_b * 0.10))))
         if b > a:
@@ -83,7 +82,7 @@ def sample_cells(shape, n_cells, rng, cls_ids):
         if (m & placed).sum() > 0.2 * m.sum():     # 与已有细胞重叠过多则重采
             continue
         placed |= m
-        cells.append({"cls": cls, "center": (cx, cy), "axes": axes, "angle": angle})
+        cells.append({"cls": 0, "center": (cx, cy), "axes": axes, "angle": angle})
     return cells
 
 
@@ -139,7 +138,7 @@ def mask_to_yolo_polygon(binary, img_w, img_h):
     return out
 
 
-def gen_split(split, n_img, shape, rng, cls_ids, n_cells_range, save_mask):
+def gen_split(split, n_img, shape, rng, n_cells_range, save_mask):
     """生成一个 split 的图像 + YOLO-seg 标签；test split 额外保存 GT 实例 mask。"""
     h, w = shape
     img_dir = os.path.join(CELL_DATA, "images", split)
@@ -153,7 +152,7 @@ def gen_split(split, n_img, shape, rng, cls_ids, n_cells_range, save_mask):
     n_inst = 0
     for i in range(n_img):
         n_cells = int(rng.integers(n_cells_range[0], n_cells_range[1] + 1))
-        cells = sample_cells(shape, n_cells, rng, cls_ids)
+        cells = sample_cells(shape, n_cells, rng)
         image = render_phase_contrast(shape, cells, rng)
         name = f"{split}_{i:04d}.png"
         # 用 imageio 而非 cv2：cv2.imwrite 在中文路径下会静默失败
@@ -176,7 +175,7 @@ def gen_split(split, n_img, shape, rng, cls_ids, n_cells_range, save_mask):
             iio.imwrite(os.path.join(msk_dir, base + ".png"), mask)
 
     print(f"[{split}] 图像 {n_img} 张，实例 {n_inst} 个"
-          + (f"，mask 已写入 cell_data/masks/" if save_mask else ""))
+          + ("，mask 已写入 cell_data_synth/masks/" if save_mask else ""))
     return n_img, n_inst
 
 
@@ -184,10 +183,7 @@ def gen_timeframes(n_frames, shape, rng, n_init, division_rate):
     """生成时序实例 mask：细胞逐帧漂移/生长，并按概率分裂（模拟增殖）。"""
     h, w = shape
     os.makedirs(TIME_DIR, exist_ok=True)
-    cls_ids = [0]
-    cells = sample_cells(shape, n_init, rng, cls_ids)
-    for c in cells:
-        c["cls"] = 0
+    cells = sample_cells(shape, n_init, rng)
 
     for fi in range(n_frames):
         mask = cells_to_instance_mask(shape, cells)
@@ -229,22 +225,19 @@ def main():
     ap.add_argument("--frames", type=int, default=10, help="时序帧数（路线 B）")
     ap.add_argument("--n_init", type=int, default=12, help="时序初始细胞数")
     ap.add_argument("--division_rate", type=float, default=0.12, help="每帧每细胞分裂概率")
-    ap.add_argument("--classes", type=int, default=8, help="使用前 N 个细胞系类别")
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
 
     rng = np.random.default_rng(args.seed)
     shape = (args.imgsz, args.imgsz)
-    n_cls = max(1, min(args.classes, len(CLASS_NAMES)))
-    cls_ids = list(range(n_cls))
     cell_range = (args.min_cells, args.max_cells)
 
-    print(f"生成合成数据 imgsz={args.imgsz}, 类别={n_cls} ({', '.join(CLASS_NAMES[:n_cls])})")
-    gen_split("train", args.n_train, shape, rng, cls_ids, cell_range, save_mask=False)
-    gen_split("val", args.n_val, shape, rng, cls_ids, cell_range, save_mask=False)
-    gen_split("test", args.n_test, shape, rng, cls_ids, cell_range, save_mask=True)
+    print(f"生成合成数据 imgsz={args.imgsz}, 类别=cell（单类）")
+    gen_split("train", args.n_train, shape, rng, cell_range, save_mask=False)
+    gen_split("val", args.n_val, shape, rng, cell_range, save_mask=False)
+    gen_split("test", args.n_test, shape, rng, cell_range, save_mask=True)
     gen_timeframes(args.frames, shape, rng, args.n_init, args.division_rate)
-    print("\n完成。下一步：python 3-yolo-cell.py --strategy baseline")
+    print("\n完成。下一步：python 3-yolo-cell.py --data livecell_synth.yaml --strategy baseline")
 
 
 if __name__ == "__main__":

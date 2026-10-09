@@ -21,7 +21,7 @@ import numpy as np
 from ultralytics import YOLO
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CLASS_NAMES = ["A172", "BT474", "BV2", "Huh7", "MCF7", "SHSY5Y", "SkBr3", "SKOV3"]
+CLASS_NAMES = ["cell"]      # 单类，与 livecell.yaml 的 names 一致
 IMG_EXTS = (".tif", ".tiff", ".png", ".jpg", ".jpeg")
 
 

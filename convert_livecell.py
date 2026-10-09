@@ -12,8 +12,7 @@
     cell_data/labels/{train,val,test}/<name>.txt
     每行 = <class_id> <x1> <y1> <x2> <y2> ...   坐标按图像宽高归一化到 0~1
 
-类别 id 由视野名里的细胞系决定（LIVECell 文件名含细胞系，如
-`livecell_phase__test-A172_Phase_C7_1_00d00h00m_1` -> A172 -> id 0）。
+所有实例统一标为 cell 一类（id=0），与 LIVECell 官方任务一致。
 
 用法：
   python convert_livecell.py                      # 转换全部划分
@@ -22,7 +21,6 @@
 """
 import argparse
 import os
-import re
 
 import cv2
 import imageio.v2 as iio
@@ -33,24 +31,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MASK_ROOT = os.path.join(HERE, "cell_data", "masks")
 LABEL_ROOT = os.path.join(HERE, "cell_data", "labels")
 
-# 与 livecell.yaml 的 names 顺序严格一致
-CLASS_NAMES = ["A172", "BT474", "BV2", "Huh7", "MCF7", "SHSY5Y", "SkBr3", "SKOV3"]
-
-# 视野名 -> 细胞系：livecell_phase__<split>-<细胞系>_Phase_...
-CELL_LINE_RE = re.compile(r"^livecell_phase__(?:train|val|test)-([A-Za-z0-9]+)_")
+# 单类：LIVECell 的官方任务就是"细胞"这一类，160 万个细胞同标 1 类。
+# 不要按细胞系分成 8 类——数据集自带的 train/valid/test 是按采集批次划分的，
+# 各 split 的细胞系几乎不重叠（train 是 A172/BT474/BV2/SkBr3/SKOV3，
+# valid/test 是 Huh7/MCF7/SHSY5Y），分 8 类训练时验证集的类别从没在训练集里
+# 出现过，mAP 会恒等于 0。
+CLASS_ID = 0
 
 MAX_POINTS = 32          # 单个实例最多保留的多边形顶点数
 MIN_POINTS = 3           # 少于 3 个点的多边形无法构成实例
-
-
-def cell_line_of(name):
-    m = CELL_LINE_RE.match(name)
-    if not m:
-        raise ValueError(f"无法从视野名解析细胞系: {name}")
-    line = m.group(1)
-    if line not in CLASS_NAMES:
-        raise ValueError(f"未知细胞系 {line}（来自 {name}）")
-    return line
 
 
 def simplify(contour, max_points=MAX_POINTS):
@@ -102,12 +91,11 @@ def convert_split(split, min_area):
     total_inst = 0
     for f in files:
         name = os.path.splitext(f)[0]
-        cls_id = CLASS_NAMES.index(cell_line_of(name))
         mask = iio.imread(os.path.join(msk_dir, f))
         polygons = mask_to_polygons(mask, min_area)
         with open(os.path.join(out_dir, name + ".txt"), "w", encoding="utf-8") as fp:
             for _, pts in polygons:
-                fp.write(str(cls_id) + " " + " ".join(f"{v:.6f}" for v in pts) + "\n")
+                fp.write(str(CLASS_ID) + " " + " ".join(f"{v:.6f}" for v in pts) + "\n")
         total_inst += len(polygons)
     print(f"  {split}: {len(files)} 个视野 -> {total_inst} 个实例标注")
     return len(files), total_inst
@@ -120,7 +108,7 @@ def main():
                     help="丢弃面积小于该值的实例（像素）")
     args = ap.parse_args()
 
-    print(f"类别: {CLASS_NAMES}")
+    print("类别: cell（单类，与 LIVECell 官方任务一致）")
     print(f"mask 目录: {MASK_ROOT}")
     files = inst = 0
     for s in args.splits:

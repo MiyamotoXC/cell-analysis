@@ -8,16 +8,11 @@ train: images/train          # 训练图像（相对 path）
 val: images/val              # 验证图像
 test: images/test            # 测试图像（可选）
 
-# 类别：LIVECell 8 种细胞系（顺序固定，convert_livecell.py 按此映射）
+# 类别：单类 cell（LIVECell 官方任务即单类分割，160 万细胞同标 1 类）。
+# 不按细胞系分 8 类的原因：数据集自带划分按采集批次走，各 split 的细胞系
+# 几乎不重叠，多类训练时验证集类别从未出现在训练集里，mAP 恒为 0。
 names:
-  0: A172
-  1: BT474
-  2: BV2
-  3: Huh7
-  4: MCF7
-  5: SHSY5Y
-  6: SkBr3
-  7: SKOV3
+  0: cell
 
 # 训练（实例分割）：
 #   yolo train model=yolov8n-seg.pt data=livecell.yaml task=segment

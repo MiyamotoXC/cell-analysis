@@ -54,7 +54,7 @@ def best_weights(strategy):
 def detect_device():
     if torch.cuda.is_available():
         props = torch.cuda.get_device_properties(0)
-        gpu_mem = props.total_mem / 1024 ** 3
+        gpu_mem = props.total_memory / 1024 ** 3
         print(f"[device] GPU: {props.name} ({gpu_mem:.1f} GB)")
         return "0", gpu_mem
     print("[device] 未检测到 GPU，使用 CPU（参数自动降档）")
@@ -62,14 +62,17 @@ def detect_device():
 
 
 # ---------- 三档训练策略 ----------
-def build_train_kwargs(strategy, device, is_cpu, data, epochs=None):
+def build_train_kwargs(strategy, device, is_cpu, data, epochs=None, batch=None,
+                       workers=None):
     """返回该策略的 model.train() 参数字典。"""
     if is_cpu:
         # CPU 短训至少要 60 轮：实测 20 轮 mAP50 仅 0.20、默认阈值下检出为 0，
         # 60 轮可到 mAP50≈0.46。imgsz 512 比 640 快约 1/3，且细胞占比更大更好学。
         base = dict(epochs=60, batch=4, workers=0, patience=10, imgsz=512)
     else:
-        base = dict(epochs=100, batch=16, workers=8, patience=50, imgsz=640)
+        # workers 压到 2：真实数据单张图有几百个实例，每个 worker 都要把它们
+        # 栅格化成 mask（mask_ratio=2 时是 512x512 int32），worker 一多内存直接爆
+        base = dict(epochs=100, batch=8, workers=2, patience=50, imgsz=640)
 
     kwargs = dict(
         data=data,
@@ -85,11 +88,17 @@ def build_train_kwargs(strategy, device, is_cpu, data, epochs=None):
         exist_ok=True,            # 防止 runs 目录爆炸
         # ---- 分割专属调参（细胞场景关键）----
         overlap_mask=True,        # 拥挤细胞掩码重叠时保留各自边界
-        mask_ratio=2,             # 默认 4；小目标细胞降到 2 保留掩码细节
+        # mask_ratio 保持默认 4：设成 2 时每个实例的掩码张量会大 4 倍，
+        # 一张图几百个细胞直接撑爆显存（imgsz 1024 下实测 693 个实例约 3.6 GB）
+        mask_ratio=4,
     )
     kwargs.update({k: v for k, v in base.items()})
     if epochs:                    # --epochs 显式覆盖
         kwargs["epochs"] = epochs
+    if batch:                     # --batch 显式覆盖（小显存跑大 imgsz 时需要调小）
+        kwargs["batch"] = batch
+    if workers:                   # --workers 显式覆盖
+        kwargs["workers"] = workers
 
     if strategy == "baseline":
         # 快速基线：基础增强
@@ -154,6 +163,11 @@ def main():
                     choices=["baseline", "enhanced", "large"])
     ap.add_argument("--data", default=DEFAULT_DATA,
                     help="数据集配置：真实 livecell.yaml / 合成 livecell_synth.yaml")
+    ap.add_argument("--batch", type=int, default=0,
+                    help="覆盖批量大小（0=按设备自动）；8 GB 显存跑 --imgsz 1024 时建议 4~8")
+    ap.add_argument("--workers", type=int, default=0,
+                    help="覆盖 dataloader 进程数（0=按设备自动）。大尺寸 + 上千实例时"
+                         "每个 worker 都要把多边形栅格化成 mask，跟着调小才不会撑爆内存")
     ap.add_argument("--model", default=None,
                     help="模型权重，默认按策略选：large 用 yolov8s-seg.pt，其余 yolov8n-seg.pt")
     ap.add_argument("--imgsz", type=int, default=0, help="覆盖默认输入尺寸（CPU 512 / GPU 640）")
@@ -171,7 +185,8 @@ def main():
     model.info()
 
     data_yaml, test_dir = resolve_data(args.data)
-    kwargs = build_train_kwargs(args.strategy, device, device == "cpu", data_yaml, args.epochs)
+    kwargs = build_train_kwargs(args.strategy, device, device == "cpu", data_yaml,
+                                args.epochs, args.batch, args.workers)
     if args.imgsz > 0:          # 显式指定才覆盖策略默认
         kwargs["imgsz"] = args.imgsz if args.strategy != "large" else max(args.imgsz, 1280)
     print(f"\n==== 训练开始（strategy={args.strategy}, model={args.model}, "

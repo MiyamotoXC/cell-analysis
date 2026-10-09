@@ -36,6 +36,9 @@ cell_data/timeframes/frame_000.png ...        同一位点的时序 mask 序列
 
 ## 快速开始（真实数据）
 
+> 仓库里已经带了跑好的数据与产出（`cell_data/`、`cell_data_synth/`、`weights/`、`outputs/`），
+> clone 下来装完依赖就能直接训练/推理，第 1、2 步可以跳过；想自己重新拉数据再执行它们。
+
 ```bash
 # NVIDIA GPU：pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
 # 纯 CPU  ：--index-url 换成 .../whl/cpu

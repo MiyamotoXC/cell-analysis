@@ -122,7 +122,7 @@ python 3-yolo-cell.py --strategy baseline --epochs 60 --imgsz 1024 # 想要指�
 | **C 蛋白质分析** | 多通道荧光 TIFF + mask | protein_features.csv | 核/质定位比、Pearson r、Manders M1 → `../蛋白质分析/` |
 
 路线 A 默认读真实 GT mask（`cell_data/masks/test`）；要看模型预测结果，加
-`--mask_dir ../cell_data/masks_pred`。
+`--mask_dir ../outputs/predict/masks`。
 
 ## 增强训练策略
 
@@ -158,16 +158,29 @@ python 3-yolo-cell.py --data livecell_synth.yaml        # 合成演示数据
 ├── 4-yolo-cell-predict.py     # 推理 + 计数 + 实例 mask 导出
 ├── requirements.txt
 │
-├── 聚类分析/                  # 路线 A：形态表型聚类
+├── 聚类分析/                  # 路线 A：形态表型聚类（纯代码）
 │   ├── cluster_features.py
 │   └── 5-cluster-cells.py
+├── 时序动态/                  # 路线 B：时序增殖（纯代码）
+│   ├── track_cells.py
+│   └── 6-proliferation.py
 │
-└── 时序动态/                  # 路线 B：时序增殖
-    ├── track_cells.py
-    └── 6-proliferation.py
+├── cell_data/                 # 数据：真实 LIVECell（下载 + 转换而来）
+├── cell_data_synth/           # 数据：合成演示数据
+├── weights/                   # 运行时下载的预训练权重
+└── outputs/                   # 全部产出都收在这里，与代码、数据分开
+    ├── train/<策略>/          #   训练：权重、results.csv、指标曲线、batch 可视化
+    ├── train/preview/         #   训练后的抽查可视化
+    ├── train/{val,conf_search}/  # 验证集评估 / conf 网格搜索
+    ├── predict/               #   推理：可视化 + masks/ 实例 mask（下游输入）
+    ├── cluster/               #   路线 A：features.csv、簇标签、簇概要、UMAP 散点
+    └── tracking/              #   路线 B：tracks.csv、增殖曲线与分裂事件
 
 ../蛋白质分析/                 # 路线 C：蛋白质定量/定位/共定位
 ```
+
+> 代码只读 `cell_data*`（数据）与 `weights/`（权重），只写 `outputs/`；
+> 所有脚本的 `--outdir` / `--out` / `--out_dir` 都可以覆盖这些默认位置。
 
 ## 其他公开数据集（可替换 LIVECell）
 

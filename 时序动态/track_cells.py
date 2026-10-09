@@ -99,7 +99,7 @@ def main():
                     help="时序 mask 目录（真实 LIVECell 由 download_livecell.py 下载；"
                          "合成演示数据在 cell_data_synth/timeframes）")
     ap.add_argument("--iou_thresh", type=float, default=0.3)
-    ap.add_argument("--out", default=os.path.join(HERE, "tracks.csv"))
+    ap.add_argument("--out", default=os.path.join(ROOT, "outputs", "tracking", "tracks.csv"))
     args = ap.parse_args()
 
     mask_files = sorted(glob.glob(os.path.join(args.mask_dir, "*.png")) +

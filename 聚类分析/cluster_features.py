@@ -56,10 +56,11 @@ def main():
     ap = argparse.ArgumentParser(description="细胞形态特征提取")
     ap.add_argument("--mask_dir", default=os.path.join(ROOT, "cell_data", "masks", "test"),
                     help="实例 mask PNG 目录（真实 LIVECell 的 GT；"
-                         "推理产物在 cell_data/masks_pred，合成演示在 cell_data_synth/masks）")
+                         "推理产物在 outputs/predict/masks，合成演示在 cell_data_synth/masks）")
     ap.add_argument("--image_dir", default=os.path.join(ROOT, "cell_data", "images", "test"),
                     help="对应原图目录（可选，用于强度特征）")
-    ap.add_argument("--out", default=os.path.join(HERE, "features.csv"), help="输出 CSV 路径")
+    ap.add_argument("--out", default=os.path.join(ROOT, "outputs", "cluster", "features.csv"),
+                    help="输出 CSV 路径")
     args = ap.parse_args()
 
     mask_files = sorted(glob.glob(os.path.join(args.mask_dir, "*.png")) +

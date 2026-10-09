@@ -34,6 +34,8 @@ from ultralytics import YOLO
 HERE = os.path.dirname(os.path.abspath(__file__))
 # 真实 LIVECell 数据集；跑合成演示数据时用 --data livecell_synth.yaml
 DEFAULT_DATA = os.path.join(HERE, "livecell.yaml")
+# 所有产出统一收在 outputs/ 下，与代码（*.py）和数据（cell_data*）分开
+OUTPUT_DIR = os.path.join(HERE, "outputs")
 
 
 def resolve_data(data_arg):
@@ -46,8 +48,8 @@ def resolve_data(data_arg):
 
 
 def best_weights(strategy):
-    """ultralytics 按 name=strategy 落盘，best.pt 在 runs/segment/<strategy>/weights/。"""
-    return os.path.join(HERE, "runs", "segment", strategy, "weights", "best.pt")
+    """ultralytics 按 name=strategy 落盘，best.pt 在 outputs/train/<strategy>/weights/。"""
+    return os.path.join(OUTPUT_DIR, "train", strategy, "weights", "best.pt")
 
 
 # ---------- 设备自适应（借鉴 train_and_predict.py） ----------
@@ -83,7 +85,7 @@ def build_train_kwargs(strategy, device, is_cpu, data, epochs=None, batch=None,
         optimizer="auto",
         amp=True,                 # 混合精度
         verbose=True,
-        project=os.path.join(HERE, "runs", "segment"),
+        project=os.path.join(OUTPUT_DIR, "train"),
         name=strategy,
         exist_ok=True,            # 防止 runs 目录爆炸
         # ---- 分割专属调参（细胞场景关键）----
@@ -148,7 +150,10 @@ def conf_search(model, data, thresholds=None):
     best_conf, best_map = None, -1.0
     print("\n==== conf 阈值网格搜索（mask mAP50）====")
     for conf in thresholds:
-        r = model.val(data=data, conf=conf, verbose=False)
+        # 必须显式指定 project/name：否则 ultralytics 会另开 runs/segment/val-N 目录
+        r = model.val(data=data, conf=conf, verbose=False,
+                      project=os.path.join(OUTPUT_DIR, "train"), name="conf_search",
+                      exist_ok=True)
         map50 = r.seg.map50            # 分割任务用 seg 指标
         print(f"  conf={conf:<5} -> mask mAP50 = {map50:.4f}")
         if map50 > best_map:
@@ -195,7 +200,8 @@ def main():
 
     # 验证集评估（mask AP：metrics/mAP50-95(M)）
     print("\n==== 验证集评估 ====")
-    metrics = model.val()
+    metrics = model.val(project=os.path.join(OUTPUT_DIR, "train"), name="val",
+                        exist_ok=True)
     print(f"mask mAP50-95(M) = {metrics.seg.map:.4f}  mAP50(M) = {metrics.seg.map50:.4f}")
 
     # conf 网格搜索（最优阈值直接用于下面的预览推理）
@@ -207,7 +213,7 @@ def main():
     wpath = best_weights(args.strategy)
     best = YOLO(wpath) if os.path.exists(wpath) else model
     if os.path.exists(test_dir) and args.preview > 0:
-        pred_dir = os.path.join(HERE, "runs", "segment", "predict")
+        pred_dir = os.path.join(OUTPUT_DIR, "train", "preview")
         os.makedirs(pred_dir, exist_ok=True)
         for name in sorted(os.listdir(test_dir))[: args.preview]:
             img_path = os.path.join(test_dir, name)

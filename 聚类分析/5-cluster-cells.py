@@ -24,6 +24,8 @@ from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)                                  # 细胞分析/
+OUT_DIR = os.path.join(ROOT, "outputs", "cluster")            # 产出统一收在 outputs/
 
 # 参与聚类的特征列（CSV 中缺哪列就自动跳过）
 FEATURE_COLS = ["area", "perimeter", "eccentricity", "solidity", "circularity",
@@ -56,13 +58,13 @@ def reduce_2d(X, method="umap"):
 
 def main():
     ap = argparse.ArgumentParser(description="细胞表型聚类")
-    ap.add_argument("--features", default=os.path.join(HERE, "features.csv"))
+    ap.add_argument("--features", default=os.path.join(OUT_DIR, "features.csv"))
     ap.add_argument("--method", default="hdbscan", choices=["hdbscan", "kmeans"])
     ap.add_argument("--k", type=int, default=4, help="KMeans 簇数")
     ap.add_argument("--min_cluster_size", type=int, default=15,
                     help="HDBSCAN 最小簇大小（需小于真实簇的细胞数，否则全部判为噪声）")
     ap.add_argument("--reduce", default="umap", choices=["umap", "pca"])
-    ap.add_argument("--outdir", default=HERE)
+    ap.add_argument("--outdir", default=OUT_DIR)
     args = ap.parse_args()
 
     df, X, cols = load_features(args.features)

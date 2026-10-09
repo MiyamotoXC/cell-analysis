@@ -23,6 +23,8 @@ from ultralytics import YOLO
 HERE = os.path.dirname(os.path.abspath(__file__))
 CLASS_NAMES = ["cell"]      # 单类，与 livecell.yaml 的 names 一致
 IMG_EXTS = (".tif", ".tiff", ".png", ".jpg", ".jpeg")
+# 所有产出统一收在 outputs/ 下，与代码（*.py）和数据（cell_data*）分开
+OUTPUT_DIR = os.path.join(HERE, "outputs")
 
 
 def list_images(d):
@@ -63,9 +65,9 @@ def main():
                     help="配合默认权重路径使用的训练任务名（baseline/enhanced/large）")
     ap.add_argument("--source", default=os.path.join(HERE, "cell_data", "images", "test"),
                     help="待推理图像目录")
-    ap.add_argument("--outdir", default=os.path.join(HERE, "runs", "segment", "predict"),
+    ap.add_argument("--outdir", default=os.path.join(OUTPUT_DIR, "predict"),
                     help="可视化结果输出目录")
-    ap.add_argument("--mask_dir", default=os.path.join(HERE, "cell_data", "masks_pred"),
+    ap.add_argument("--mask_dir", default=os.path.join(OUTPUT_DIR, "predict", "masks"),
                     help="实例 mask 导出目录（下游路线 A/B/C 的输入）")
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--tta", action="store_true", help="开启 TTA 推理")
@@ -73,7 +75,7 @@ def main():
     args = ap.parse_args()
 
     weights = args.weights or os.path.join(
-        HERE, "runs", "segment", args.name, "weights", "best.pt")
+        OUTPUT_DIR, "train", args.name, "weights", "best.pt")
     if not os.path.exists(weights):
         raise FileNotFoundError(
             f"未找到权重 {weights}。请先训练（python 3-yolo-cell.py --strategy {args.name}）"

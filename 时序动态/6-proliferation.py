@@ -18,13 +18,15 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)                                  # 细胞分析/
+OUT_DIR = os.path.join(ROOT, "outputs", "tracking")           # 产出统一收在 outputs/
 
 
 def main():
     ap = argparse.ArgumentParser(description="增殖分析")
-    ap.add_argument("--tracks", default=os.path.join(HERE, "tracks.csv"))
+    ap.add_argument("--tracks", default=os.path.join(OUT_DIR, "tracks.csv"))
     ap.add_argument("--interval_h", type=float, default=4.0, help="帧间隔（小时）")
-    ap.add_argument("--outdir", default=HERE)
+    ap.add_argument("--outdir", default=OUT_DIR)
     args = ap.parse_args()
 
     if not os.path.exists(args.tracks):

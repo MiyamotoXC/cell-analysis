@@ -103,7 +103,10 @@ def main():
         for k in r.keys():
             if k not in fields:
                 fields.append(k)
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    # --out 只给文件名时 dirname 是空串，makedirs("") 会抛 WinError 3
+    out_dir = os.path.dirname(args.out)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
     with open(args.out, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()

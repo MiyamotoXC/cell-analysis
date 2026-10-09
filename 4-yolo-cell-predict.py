@@ -29,6 +29,21 @@ def list_images(d):
     return sorted(p for p in os.listdir(d) if p.lower().endswith(IMG_EXTS))
 
 
+def to_original_size(masks_np, hw):
+    """把掩码还原到原图尺寸（最近邻）。
+
+    ultralytics 的 `results.masks.data` 是**网络输入尺寸**（如 576x768），不是原图
+    尺寸；不还原的话导出的实例 mask 与图像对不上，下游 regionprops 会直接报
+    "Label and intensity image shapes must match"。
+    """
+    h, w = hw
+    if masks_np.shape[1:] == (h, w):
+        return masks_np
+    ys = (np.arange(h) * masks_np.shape[1] / h).astype(np.int32)
+    xs = (np.arange(w) * masks_np.shape[2] / w).astype(np.int32)
+    return masks_np[:, ys][:, :, xs]
+
+
 def save_instance_mask(masks_np, shape, out_path):
     """把 n 个二值掩码叠成实例 mask（uint16）。重叠处以后出现的实例为准。"""
     inst = np.zeros(shape, dtype=np.uint16)
@@ -90,13 +105,15 @@ def main():
         n_inst = 0
         if r.masks is not None and r.boxes is not None and len(r.boxes.cls) > 0:
             cls = r.boxes.cls.cpu().numpy().astype(int)
-            masks_np = r.masks.data.cpu().numpy()        # (n, H, W)，已还原到原图尺度
+            masks_np = r.masks.data.cpu().numpy()        # (n, H, W)，H/W 是网络输入尺寸
+            orig_hw = iio.imread(os.path.join(args.source, name)).shape[:2]
+            masks_np = to_original_size(masks_np, orig_hw)
             for c in cls:
                 if 0 <= c < len(CLASS_NAMES):
                     counts[CLASS_NAMES[c]] += 1
                 total += 1
             n_inst = save_instance_mask(
-                masks_np, masks_np.shape[1:],
+                masks_np, orig_hw,
                 os.path.join(args.mask_dir, os.path.splitext(name)[0] + ".png"))
         print(f"  {name}: {n_inst} 个细胞")
 

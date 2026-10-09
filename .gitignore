@@ -8,8 +8,9 @@ venv/
 # 数据与模型（体积大，全部由脚本生成/下载）
 cell_data/
 cell_data_synth/
-# 已下载但暂不参与训练的视野（download_livecell.py 移出）
+# 已下载但暂不参与训练的视野（按实例数/密度筛掉的部分）
 cell_data_spare/
+cell_data_spare2/
 timeframes/
 runs/
 *.pt
@@ -18,9 +19,9 @@ runs/
 *.csv
 *.png
 
-# 训练日志
+# 训练日志（后台训练时重定向的 stdout/stderr）
 *.log
-train.err
+*.err
 
 # 本地环境
 .env

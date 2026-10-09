@@ -128,6 +128,9 @@ def main():
     ap = argparse.ArgumentParser(description="下载真实 LIVECell 数据集")
     ap.add_argument("--max_per_split", type=int, default=40,
                     help="每个划分下载多少个视野（0=只下时序帧，-1=全量 5239 视野）")
+    ap.add_argument("--max_objects", type=int, default=0,
+                    help="只采样细胞数不超过该值的视野（0=不限）。CPU 上建议设 400："
+                         "高汇合视野单张就有 2000+ 实例，训练一轮要好几分钟")
     ap.add_argument("--ts_frames", type=int, default=8,
                     help="额外下载同一位点的时序 mask 帧数（0=不下，路线 B 用）")
     ap.add_argument("--workers", type=int, default=8, help="并发下载线程数")
@@ -150,6 +153,8 @@ def main():
     rng = np.random.default_rng(seed=42)
     jobs = []
     for d, names in splits.items():
+        if args.max_objects > 0:
+            names = [x for x in names if x[1] <= args.max_objects]
         if args.max_per_split == 0:
             names = []                       # 只要时序帧
         elif args.max_per_split > 0:

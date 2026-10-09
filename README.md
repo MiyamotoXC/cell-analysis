@@ -74,8 +74,16 @@ python 时序动态/track_cells.py --mask_dir ../cell_data_synth/timeframes
 | 路线 B（真实时序） | Huh7 位点 6 帧（每 4h）：458 条记录 / 295 条轨迹，细胞数 79 → 73，检出 5 起分裂 |
 | 路线 C（真实荧光） | 见 `../蛋白质分析/`：3 个视野 1784 个细胞，核/质定位比 0.38~4.12 |
 
-真实 LIVECell 单张视野常含上千个小细胞（中位面积约 100 px），CPU 短训只能拿到初步
-结果。要出好指标，请加大 `--max_per_split` 并在 GPU 上跑 `--strategy enhanced`。
+**CPU 上的性能提示**：LIVECell 的高汇合视野单张就有 2000+ 个细胞（中位面积约 100 px，
+直径约 11 px），CPU 上训练一轮要好几分钟，且 512 尺度下这么小的目标学不到东西。
+CPU 用户请这样下载（只取中等密度视野）并在 GPU/大尺度下追求指标：
+
+```bash
+python download_livecell.py --max_per_split 40 --max_objects 400   # 每视野 <=400 个细胞
+python 3-yolo-cell.py --strategy baseline --epochs 60 --imgsz 1024 # 想要指标：大尺度 + 更多轮
+```
+
+要出好指标，请加大 `--max_per_split` 并在 GPU 上跑 `--strategy enhanced --imgsz 1024`。
 
 ## 三条下游路线
 

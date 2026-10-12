@@ -2,7 +2,10 @@
 
 > 基于 **LIVECell**（Nature Methods 2021，8 种细胞系，160 万+ 标注细胞）做
 > **单细胞实例分割**（YOLOv8-seg），并在分割结果之上提供**三条下游分析路线**：
-> 聚类表型发现（A）、时序增殖动态（B）、蛋白质荧光定量（C，见 `../蛋白质分析/`）。
+> 聚类表型发现（A）、时序增殖动态（B）、蛋白质荧光定量（C，见 `../蛋白质分析/`)。
+
+[![CI](https://github.com/MiyamotoXC/cell-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/MiyamotoXC/cell-analysis/actions/workflows/ci.yml)
+> ↑ 构建状态由 GitHub Actions 自动运行（clone 后 `python -m compileall -q .` 即触发语法校验）。
 
 ## 数据：默认走真实公开数据集
 
@@ -213,3 +216,12 @@ python 3-yolo-cell.py --data livecell_synth.yaml        # 合成演示数据
 - HDBSCAN 的 `min_cluster_size` 必须小于真实簇的细胞数，否则所有点都会被判成噪声
   （脚本已按样本量自动收敛，也可用 `--min_cluster_size` 手工指定）。
 - 路线 B 的时序帧直接用 LIVECell 自带的时间序列（每 4h 一帧），`--ts_frames` 控制帧数。
+
+## 简历可用条目（项目经历）
+
+> 也可直接看上级目录的「简历项目经历」整合文档。下面这条可直接贴进简历。
+
+**细胞分析 · 单细胞实例分割 + 三条下游分析** ｜ YOLOv8-seg / PyTorch / 聚类 / 时序追踪
+- 基于 LIVECell 真实公开数据集（160 万+ 标注细胞）做单细胞实例分割（YOLOv8-seg），并搭建形态聚类、时序增殖、蛋白质定量三条下游路线；支持设备自适应与 baseline/enhanced/large 三档策略（mask_ratio、cos_lr、TTA、conf 搜索）。
+- 实测：下载 272 视野 / 40,937 真实细胞，转 40,937 实例多边形；推理 40 张测试图检出 3,752 细胞（GT≈2,900）；形态聚类 3,443 细胞 → 7 簇；Huh7 时序 6 帧检出 295 条轨迹、5 起分裂。
+- 诚实边界：mask mAP50=0.017 为 8GB 显存单机受限结果（非数据集基线），已给出提分路径。对应课程：Pytorch 与视觉检测、AI 质检实战。

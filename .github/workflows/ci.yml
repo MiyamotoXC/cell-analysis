@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # 本仓库脚本在模块顶层 import torch/ultralytics/skimage 等重依赖，
+      # 不在 CI 安装（体积大、需 GPU）。CI 仅做语法编译校验（compileall 不执行 import），
+      # 真实训练/推理需在本地 GPU 环境运行。
+      - name: Compile all Python sources (syntax check)
+        run: python -m compileall -q .
